@@ -78,7 +78,7 @@ namespace tgx
         const int32_t dx3, const int32_t dy3, int32_t O3, const RasterizerVec4& fP3,
         const RasterizerParams<color_t, color_t, ZBUFFER_t>& data)
         {
-        color_t col = (color_t)data.facecolor;        
+        color_t col = (color_t)data.facecolor;
         const int32_t stride = data.im->stride();
         color_t* buf = data.im->data() + oox + (ooy * stride);
 
@@ -154,9 +154,9 @@ namespace tgx
         const int32_t dx2, const int32_t dy2, int32_t O2, const RasterizerVec4& fP2,
         const int32_t dx3, const int32_t dy3, int32_t O3, const RasterizerVec4& fP3,
         const RasterizerParams<color_t, color_t, ZBUFFER_t>& data)
-        {        
+        {
         const int32_t stride = data.im->stride();
-        color_t* buf = data.im->data() + oox + (ooy * stride); 
+        color_t* buf = data.im->data() + oox + (ooy * stride);
 
         const color_t col1 = (color_t)fP1.color;
         const color_t col2 = (color_t)fP2.color;
@@ -351,7 +351,7 @@ namespace tgx
                     const int maxx = (TEXTURE_WRAP ? ((ttx + 1) & (texsize_x_mm)) : shaderclip(ttx + 1, texsize_x_mm));
                     const int miny = (TEXTURE_WRAP ? ((tty & (texsize_y_mm))*texstride) : shaderclip(tty, texsize_y_mm) * texstride);
                     const int maxy = (TEXTURE_WRAP ? (((tty + 1) & (texsize_y_mm))*texstride) : shaderclip(tty + 1, texsize_y_mm) * texstride);
-                    col = interpolateColorsBilinear(tex[minx + miny], tex[maxx + miny], tex[minx + maxy], tex[maxx + maxy], ax, ay);                            
+                    col = interpolateColorsBilinear(tex[minx + miny], tex[maxx + miny], tex[minx + maxy], tex[maxx + maxy], ax, ay);
                     }
                 else
                     {
@@ -566,7 +566,6 @@ namespace tgx
         color_t* buf = data.im->data() + oox + (ooy * stride);
         ZBUFFER_t* zbuf = data.zbuf + oox + (ooy * zstride);
 
-
         const uintptr_t end = (uintptr_t)(buf + (ly * stride));
         const int32_t pa = O1 + O2 + O3;
         const int32_t E = ((pa == 0) ? 1 : 0);
@@ -773,7 +772,7 @@ namespace tgx
             }
         else
             { // small aera, use interpolateColorsTriangle<false>
-            shader_Gouraud_Zbuffer_sub<color_t, ZBUFFER_t, 0>(oox, ooy, lx, ly, dx1, dy1, O1, fP1, dx2, dy2, O2, fP2, dx3, dy3, O3, fP3, data);        
+            shader_Gouraud_Zbuffer_sub<color_t, ZBUFFER_t, 0>(oox, ooy, lx, ly, dx1, dy1, O1, fP1, dx2, dy2, O2, fP2, dx3, dy3, O3, fP3, data);
             }
         }            
 
@@ -788,11 +787,11 @@ namespace tgx
         const int32_t dx2, const int32_t dy2, int32_t O2, const RasterizerVec4& fP2,
         const int32_t dx3, const int32_t dy3, int32_t O3, const RasterizerVec4& fP3,
         const RasterizerParams<color_t, color_t, ZBUFFER_t>& data)
-        {      
+        {
         const float wa = data.wa;
         const float wb = data.wb;
         (void)wa; // silence possible unused warnings
-        (void)wb; // 
+        (void)wb; //
 
         const int32_t stride = data.im->stride();
         const int32_t zstride = data.im->lx();
@@ -913,16 +912,176 @@ namespace tgx
                         const int maxx = (TEXTURE_WRAP ? ((ttx + 1) & (texsize_x_mm)) : shaderclip(ttx + 1, texsize_x_mm));
                         const int miny = (TEXTURE_WRAP ? ((tty & (texsize_y_mm)) * texstride) : shaderclip(tty, texsize_y_mm) * texstride);
                         const int maxy = (TEXTURE_WRAP ? (((tty + 1) & (texsize_y_mm)) * texstride) : shaderclip(tty + 1, texsize_y_mm) * texstride);
-                        col = interpolateColorsBilinear(tex[minx + miny], tex[maxx + miny], tex[minx + maxy], tex[maxx + maxy], ax, ay);                            
+                        col = interpolateColorsBilinear(tex[minx + miny], tex[maxx + miny], tex[minx + maxy], tex[maxx + maxy], ax, ay);
                         }
                     else
                         {
                         const int ttx = (TEXTURE_WRAP ? ((int)((tx * icw))) & (texsize_x_mm) : shaderclip((int)(tx * icw), texsize_x_mm));
                         const int tty = (TEXTURE_WRAP ? ((int)((ty * icw))) & (texsize_y_mm) : shaderclip((int)(ty * icw), texsize_y_mm));                                          
-                        col = tex[ttx + (tty)*texstride];                           
+                        col = tex[ttx + (tty)*texstride];
                         }  
                     
                     col.mult256(fPR, fPG, fPB);
+                    buf[bx] = col;
+                    }
+
+                C2 += dx2;
+                C3 += dx3;
+                cw += dw;
+
+                tx += dtx;
+                ty += dty;
+
+                bx++;
+                }
+
+            O1 += dy1;
+            O2 += dy2;
+            O3 += dy3;
+            buf += stride;
+            zbuf += zstride;
+            }
+        }
+
+
+
+    /**
+    * ZBUFFER + TEXTURE
+    **/
+    template<typename color_t, typename ZBUFFER_t, bool TEXTURE_BILINEAR, bool TEXTURE_WRAP>
+    void shader_Texture_Zbuffer(const int32_t oox, const int32_t ooy, const int32_t lx, const int32_t ly,
+        const int32_t dx1, const int32_t dy1, int32_t O1, const RasterizerVec4& fP1,
+        const int32_t dx2, const int32_t dy2, int32_t O2, const RasterizerVec4& fP2,
+        const int32_t dx3, const int32_t dy3, int32_t O3, const RasterizerVec4& fP3,
+        const RasterizerParams<color_t, color_t, ZBUFFER_t>& data)
+        {
+        const float wa = data.wa;
+        const float wb = data.wb;
+        (void)wa; // silence possible unused warnings
+        (void)wb; //
+
+        const int32_t stride = data.im->stride();
+        const int32_t zstride = data.im->lx();
+
+        color_t* buf = data.im->data() + oox + (ooy * stride);
+        ZBUFFER_t* zbuf = data.zbuf + oox + (ooy * zstride);
+
+        const uintptr_t end = (uintptr_t)(buf + (ly * stride));
+        const int32_t pa = O1 + O2 + O3;
+        const int32_t E = ((pa == 0) ? 1 : 0);
+        const int32_t aera = pa + E;
+
+        const float invaera = fast_inv((float)aera);
+        const float fP1a = fP1.w * invaera;
+        const float fP2a = fP2.w * invaera;
+        const float fP3a = fP3.w * invaera;
+
+        const float dw = (dx1 * fP1a) + (dx2 * fP2a) + (dx3 * fP3a);
+
+        // the texture coord
+        fVec2 T1 = fP1.T;
+        fVec2 T2 = fP2.T;
+        fVec2 T3 = fP3.T;
+
+        const color_t* tex = data.tex->data();
+        const int32_t texsize_x = data.tex->width();
+        const int32_t texsize_y = data.tex->height();
+        const int32_t texsize_x_mm = texsize_x - 1;
+        const int32_t texsize_y_mm = texsize_y - 1;
+        const int32_t texstride = data.tex->stride();
+
+        // divide the texture coord by z * aera
+        T1 *= fP1a;
+        T2 *= fP2a;
+        T3 *= fP3a;
+        T1.x *= texsize_x;
+        T2.x *= texsize_x;
+        T3.x *= texsize_x;
+        T1.y *= texsize_y;
+        T2.y *= texsize_y;
+        T3.y *= texsize_y;
+
+        const float dtx = ((T1.x * dx1) + (T2.x * dx2) + (T3.x * dx3));
+        const float dty = ((T1.y * dx1) + (T2.y * dx2) + (T3.y * dx3));
+
+        while ((uintptr_t)(buf) < end)
+            { // iterate over scanlines
+            int32_t bx = 0; // start offset
+            if (O1 < 0)
+                {
+                // we know that dx1 > 0
+                bx = (-O1 + dx1 - 1u) / dx1; // first index where it becomes positive
+                }
+            if (O2 < 0)
+                {
+                if (dx2 <= 0)
+                    {
+                    if (dy2 <= 0) return;
+                    const int32_t by = (-O2 + dy2 - 1u) / dy2;
+                    O1 += (by * dy1);
+                    O2 += (by * dy2);
+                    O3 += (by * dy3);
+                    buf += (by * stride);
+                    zbuf += (by * zstride);
+                    continue;
+                    }
+                const int32_t bx2 = (-O2 + dx2 - 1u) / dx2;
+                bx = max(bx, bx2);
+                }
+            if (O3 < 0)
+                {
+                if (dx3 <= 0)
+                    {
+                    if (dy3 <= 0) return;
+                    const int32_t by = (-O3 + dy3 - 1u) / dy3;
+                    O1 += (by * dy1);
+                    O2 += (by * dy2);
+                    O3 += (by * dy3);
+                    buf += (by * stride);
+                    zbuf += (by * zstride);
+                    continue;
+                    }
+                const int32_t bx3 = (-O3 + dx3 - 1u) / dx3;
+                bx = max(bx, bx3);
+                }
+            int32_t C1 = O1 + (dx1 * bx) + E;
+            int32_t C2 = O2 + (dx2 * bx);
+            int32_t C3 = O3 + (dx3 * bx);
+            float cw = ((C1 * fP1a) + (C2 * fP2a) + (C3 * fP3a));
+
+            float tx = ((T1.x * C1) + (T2.x * C2) + (T3.x * C3));
+            float ty = ((T1.y * C1) + (T2.y * C2) + (T3.y * C3));
+
+            while ((bx < lx) && ((C2 | C3) >= 0))
+                {
+                ZBUFFER_t& W = zbuf[bx];
+                const ZBUFFER_t aa = (std::is_same<ZBUFFER_t, uint16_t>::value) ? ((ZBUFFER_t)(cw * wa + wb)) : ((ZBUFFER_t)cw);
+                if (W < aa)
+                    {
+                    W = aa;
+                    const float icw = fast_inv(cw);
+
+                    color_t col;
+                    if (TEXTURE_BILINEAR)
+                        {
+                        const float xx = tx * icw;
+                        const float yy = ty * icw;
+                        const int ttx = lfloorf(xx);
+                        const int tty = lfloorf(yy);
+                        const float ax = xx - ttx;
+                        const float ay = yy - tty;
+                        const int minx = (TEXTURE_WRAP ? (ttx & (texsize_x_mm)) : shaderclip(ttx, texsize_x_mm));
+                        const int maxx = (TEXTURE_WRAP ? ((ttx + 1) & (texsize_x_mm)) : shaderclip(ttx + 1, texsize_x_mm));
+                        const int miny = (TEXTURE_WRAP ? ((tty & (texsize_y_mm)) * texstride) : shaderclip(tty, texsize_y_mm) * texstride);
+                        const int maxy = (TEXTURE_WRAP ? (((tty + 1) & (texsize_y_mm)) * texstride) : shaderclip(tty + 1, texsize_y_mm) * texstride);
+                        col = interpolateColorsBilinear(tex[minx + miny], tex[maxx + miny], tex[minx + maxy], tex[maxx + maxy], ax, ay);
+                        }
+                    else
+                        {
+                        const int ttx = (TEXTURE_WRAP ? ((int)((tx * icw))) & (texsize_x_mm) : shaderclip((int)(tx * icw), texsize_x_mm));
+                        const int tty = (TEXTURE_WRAP ? ((int)((ty * icw))) & (texsize_y_mm) : shaderclip((int)(ty * icw), texsize_y_mm));
+                        col = tex[ttx + (tty)*texstride];
+                        }
                     buf[bx] = col;
                     }
 
@@ -955,11 +1114,11 @@ namespace tgx
         const int32_t dx2, const int32_t dy2, int32_t O2, const RasterizerVec4& fP2,
         const int32_t dx3, const int32_t dy3, int32_t O3, const RasterizerVec4& fP3,
         const RasterizerParams<color_t, color_t, ZBUFFER_t>& data)
-        {       
+        {
         const float wa = data.wa;
         const float wb = data.wb;
         (void)wa; // silence possible unused warnings
-        (void)wb; // 
+        (void)wb; //
 
         const int32_t stride = data.im->stride();
         const int32_t zstride = data.im->lx();
@@ -1095,7 +1254,7 @@ namespace tgx
                         const int ttx = (TEXTURE_WRAP ? ((int)((tx * icw))) & (texsize_x_mm) : shaderclip((int)(tx * icw), texsize_x_mm));
                         const int tty = (TEXTURE_WRAP ? ((int)((ty * icw))) & (texsize_y_mm) : shaderclip((int)(ty * icw), texsize_y_mm));
                         col = tex[ttx + (tty)*texstride];
-                        }  
+                        }
 
                     const int r = fP1R + ((C2 * fP21R + C3 * fP31R) / aera);
                     const int g = fP1G + ((C2 * fP21G + C3 * fP31G) / aera);
@@ -1869,6 +2028,23 @@ namespace tgx
                                 shader_Flat_Texture_Zbuffer<color_t, ZBUFFER_t, false,true>(oox, ooy, lx, ly, dx1, dy1, O1, fP1, dx2, dy2, O2, fP2, dx3, dy3, O3, fP3, data);
                             }
                         }
+                    else
+                        { // unlit
+                        if (TGX_SHADER_HAS_TEXTURE_BILINEAR(SHADER_FLAGS_ENABLED) && TGX_SHADER_HAS_TEXTURE_BILINEAR(raster_type))
+                            {
+                            if (TGX_SHADER_HAS_TEXTURE_CLAMP(SHADER_FLAGS_ENABLED) && TGX_SHADER_HAS_TEXTURE_CLAMP(raster_type))
+                                shader_Texture_Zbuffer<color_t, ZBUFFER_t, true,false>(oox, ooy, lx, ly, dx1, dy1, O1, fP1, dx2, dy2, O2, fP2, dx3, dy3, O3, fP3, data);
+                            else if (TGX_SHADER_HAS_TEXTURE_WRAP_POW2(SHADER_FLAGS_ENABLED))
+                                shader_Texture_Zbuffer<color_t, ZBUFFER_t, true,true>(oox, ooy, lx, ly, dx1, dy1, O1, fP1, dx2, dy2, O2, fP2, dx3, dy3, O3, fP3, data);
+                            }
+                        else if (TGX_SHADER_HAS_TEXTURE_NEAREST(SHADER_FLAGS_ENABLED))
+                            {
+                            if (TGX_SHADER_HAS_TEXTURE_CLAMP(SHADER_FLAGS_ENABLED) && TGX_SHADER_HAS_TEXTURE_CLAMP(raster_type))
+                                shader_Texture_Zbuffer<color_t, ZBUFFER_t, false,false>(oox, ooy, lx, ly, dx1, dy1, O1, fP1, dx2, dy2, O2, fP2, dx3, dy3, O3, fP3, data);
+                            else if (TGX_SHADER_HAS_TEXTURE_WRAP_POW2(SHADER_FLAGS_ENABLED))
+                                shader_Texture_Zbuffer<color_t, ZBUFFER_t, false,true>(oox, ooy, lx, ly, dx1, dy1, O1, fP1, dx2, dy2, O2, fP2, dx3, dy3, O3, fP3, data);
+                            }
+                        }
                     }
                 else if (TGX_SHADER_HAS_NOTEXTURE(SHADER_FLAGS_ENABLED))
                     {
@@ -2085,7 +2261,6 @@ namespace tgx
         const int32_t dx3, const int32_t dy3, int32_t O3, const RasterizerVec4& fP3,
         const RasterizerParams<color_t_im, color_t_tex, float> & data)
         {
-
         const int32_t stride = data.im->stride();
         color_t_im* buf = data.im->data() + oox + (ooy * stride);
 
@@ -2285,7 +2460,6 @@ namespace tgx
         const int32_t dx3, const int32_t dy3, int32_t O3, const RasterizerVec4& fP3,
         const RasterizerParams<color_t_im, color_t_tex, float, BLEND_OP> & data)
         {
-      
         const int32_t stride = data.im->stride();
         color_t_im * buf = data.im->data() + oox + (ooy * stride);
 

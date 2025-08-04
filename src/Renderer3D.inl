@@ -721,7 +721,7 @@ namespace tgx
                     PPC2.color = _phong(icu * dotProduct(NN2, _r_light_inorm), icu * dotProduct(NN2, _r_H_inorm), col2);
                     }
                 }
-            else
+            else if(TGX_SHADER_HAS_FLAT(RASTER_TYPE))
                 { // flat shading
                 const float icu = ((cu > 0) ? -1.0f : 1.0f); // -1 if we need to reverse the face normal.
                 faceN.normalize_fast();
@@ -732,6 +732,20 @@ namespace tgx
                 else
                     {
                     _uni.facecolor = _phong<false>(icu * dotProduct(faceN, _r_light), icu * dotProduct(faceN, _r_H));
+                    }
+                PPC0.color = _uni.facecolor; // unneeded but
+                PPC1.color = _uni.facecolor; // does no harm
+                PPC2.color = _uni.facecolor; // and remove a warning
+                }
+            else
+                {
+                if (TGX_SHADER_HAS_TEXTURE(RASTER_TYPE))
+                    {
+                    _uni.facecolor = RGBf(1.f, 1.f, 1.f);
+                    }
+                else
+                    {
+                    _uni.facecolor = _r_objectColor;
                     }
                 PPC0.color = _uni.facecolor; // unneeded but
                 PPC1.color = _uni.facecolor; // does no harm
@@ -969,7 +983,7 @@ namespace tgx
                     PPC2.color = _phong(icu * dotProduct(NN2, _r_light_inorm), icu * dotProduct(NN2, _r_H_inorm),Vcol2);
                     }
                 }
-            else
+            else if(TGX_SHADER_HAS_FLAT(RASTER_TYPE))
                 { // flat shading
                 const float icu = ((cu > 0) ? -1.0f : 1.0f); // -1 if we need to reverse the face normal.
                 faceN.normalize_fast();
@@ -980,6 +994,17 @@ namespace tgx
                 else
                     {
                     _uni.facecolor = _phong<false>(icu * dotProduct(faceN, _r_light), icu * dotProduct(faceN, _r_H));
+                    }
+                }
+            else
+                {
+                if (TGX_SHADER_HAS_TEXTURE(RASTER_TYPE))
+                    {
+                    _uni.facecolor = RGBf(1.f, 1.f, 1.f);
+                    }
+                else
+                    {
+                    _uni.facecolor = _r_objectColor;
                     }
                 }
 
@@ -1106,7 +1131,7 @@ namespace tgx
                     PPC3.color = _phong(icu * dotProduct(NN3, _r_light_inorm), icu * dotProduct(NN3, _r_H_inorm), Vcol3);
                     }
                 }
-            else
+            else if(TGX_SHADER_HAS_FLAT(RASTER_TYPE))
                 { // flat shading
                 const float icu = ((cu > 0) ? -1.0f : 1.0f); // -1 if we need to reverse the face normal.
                 faceN.normalize_fast();
@@ -1117,6 +1142,17 @@ namespace tgx
                 else
                     {
                     _uni.facecolor = _phong<false>(icu * dotProduct(faceN, _r_light), icu * dotProduct(faceN, _r_H));
+                    }
+                }
+            else
+                {
+                if (TGX_SHADER_HAS_TEXTURE(RASTER_TYPE))
+                    {
+                    _uni.facecolor = RGBf(1.f, 1.f, 1.f);
+                    }
+                else
+                    {
+                    _uni.facecolor = _r_objectColor;
                     }
                 }
 
@@ -1185,6 +1221,7 @@ namespace tgx
 
             const bool TEXTURE = (bool)(TGX_SHADER_HAS_TEXTURE(RASTER_TYPE));
             const bool GOURAUD = (bool)(TGX_SHADER_HAS_GOURAUD(RASTER_TYPE));
+            const bool FLAT = (bool)(TGX_SHADER_HAS_FLAT(RASTER_TYPE));
 
             // check if the object is completely outside of the image for fast discard.
             if (_discardBox(mesh->bounding_box, _projM * _r_modelViewM)) return;
@@ -1273,7 +1310,7 @@ namespace tgx
                             | (PPC1->y < -CLIPBOUND_XY) | (PPC1->y > CLIPBOUND_XY)
                             | (PPC1->z < -1) | (PPC1->z > 1);
                         if (needclip)
-                            { // need cliiping, test is we can just discard the triangle if not shown on screen
+                            { // need cliping, test is we can just discard the triangle if not shown on screen
                             if (!_discardTriangle(*((fVec4*)PPC0), *((fVec4*)PPC1), *((fVec4*)PPC2)))
                                 { // no, use the slow drawing method with clipping
                                 _drawTriangleClipped(RASTER_TYPE,
@@ -1315,7 +1352,7 @@ namespace tgx
                             PPC2->color = _phong<false>(icu * dotProduct(PPC2->N, _r_light_inorm), icu * dotProduct(PPC2->N, _r_H_inorm));
 
                         }
-                    else
+                    else if (FLAT)
                         { // flat shading : color on faces
                         const float icu = ((cu > 0) ? -1.0f : 1.0f); // -1 if we need to reverse the face normal.
                         faceN.normalize_fast();
@@ -1323,6 +1360,13 @@ namespace tgx
                             _uni.facecolor = _phong<true>(icu * dotProduct(faceN, _r_light), icu * dotProduct(faceN, _r_H));
                         else
                             _uni.facecolor = _phong<false>(icu * dotProduct(faceN, _r_light), icu * dotProduct(faceN, _r_H));
+                        }
+                    else
+                        {
+                        if (TEXTURE)
+                            _uni.facecolor = RGBf(1.f, 1.f, 1.f);
+                        else
+                            _uni.facecolor = _r_objectColor;
                         }
 
                     if (TEXTURE)
@@ -3066,9 +3110,14 @@ namespace tgx
                 TGX_SHADER_ADD_GOURAUD(_shaders)
                 TGX_SHADER_REMOVE_FLAT(_shaders)
                 }
-            else 
+            else if (TGX_SHADER_HAS_FLAT(new_shaders))
                 {
                 TGX_SHADER_ADD_FLAT(_shaders)
+                TGX_SHADER_REMOVE_GOURAUD(_shaders)
+                }
+            else
+                {
+                TGX_SHADER_REMOVE_FLAT(_shaders)
                 TGX_SHADER_REMOVE_GOURAUD(_shaders)
                 }
 
